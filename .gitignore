@@ -205,3 +205,29 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+terraform.tfstate
+terraform.tfstate.backup
+crash.log
+crash.log.*
+override.tf
+override.tf.json
+*_override.tf
+*.tfvars
+*.tfvars.json
+override.tfvars
+override.tfvars.json
+*.tfvars.backup
+.terraformrc
+terraform.rc
+*.tfplan
+plan.out
+# Lockfile (recommended to commit for reproducible installs)
+# .terraform.lock.hcl
+
+.terraform.lock.hcl
