@@ -1,5 +1,10 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, QueryCommand } = require("@aws-sdk/lib-dynamodb");
+const { z } = require("zod");
+
+bodySchema = z.object({
+  codeInsee: z.string().length(5)
+})
 
 exports.handler = async function (event) {
 
@@ -20,16 +25,16 @@ exports.handler = async function (event) {
     return { statusCode: 400, body: error.message };
   }
 
-  const code_insee = requestBody.code_insee;
-  if (!code_insee) {
-    return { statusCode: 400, body: "Bad Request: Missing code_insee" };
+  const bodyParsed = bodySchema.safeParse(requestBody);
+  if (!bodyParsed.success) {
+    return { statusCode: 400, body: "Bad Request: Invalid codeInsee format" };
   }
 
   const ddbClient = new DynamoDBClient({ region: process.env.AWS_REGION || "eu-central-1" });
   const ddbDocClient = DynamoDBDocumentClient.from(ddbClient);
   const input = {
     ExpressionAttributeValues: {
-      ":code_insee": code_insee ,
+      ":code_insee": bodyParsed.data.codeInsee,
     },
     KeyConditionExpression: "code_insee = :code_insee",
     TableName: process.env.DYNAMODB_TABLE_NAME,
