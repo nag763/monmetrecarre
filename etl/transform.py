@@ -90,7 +90,7 @@ grouped = (
 # PK = Commune, SK = Type#Year
 flattened_df = grouped.withColumn(
     "type_year", F.concat_ws("_", col("type_local"), col("year"), col("month"))
-).drop("type_local", "year")
+)
 
 # Convert to JSON strings for DynamoDB
 items = (
@@ -107,9 +107,6 @@ with table.batch_writer() as batch:
     for item_str in items:
         item = json.loads(item_str)
         item = convert_floats_to_decimal(item)
-        print("Item ---")
-        print(item)
-        print("---")
         batch.put_item(Item=item)
 
 print("✅ DynamoDB write complete.")

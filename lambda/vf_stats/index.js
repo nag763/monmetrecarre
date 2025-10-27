@@ -1,4 +1,5 @@
-const { DynamoDBClient, QueryCommand } = require("@aws-sdk/client-dynamodb");
+const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const { DynamoDBDocumentClient, QueryCommand } = require("@aws-sdk/lib-dynamodb");
 
 exports.handler = async function (event) {
 
@@ -25,15 +26,16 @@ exports.handler = async function (event) {
   }
 
   const ddbClient = new DynamoDBClient({ region: process.env.AWS_REGION || "eu-central-1" });
+  const ddbDocClient = DynamoDBDocumentClient.from(ddbClient);
   const input = {
     ExpressionAttributeValues: {
-      ":v1": { S: code_insee },
+      ":code_insee": code_insee ,
     },
-    KeyConditionExpression: "code_insee = :v1",
+    KeyConditionExpression: "code_insee = :code_insee",
     TableName: process.env.DYNAMODB_TABLE_NAME,
   };
   const command = new QueryCommand(input);
-  const response = await ddbClient.send(command);
+  const response = await ddbDocClient.send(command);
 
   if (!response.Items || response.Items.length === 0) {
     return { statusCode: 204, body: "Not Found: No data for the given code_insee" };
