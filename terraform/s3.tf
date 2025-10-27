@@ -62,3 +62,24 @@ resource "aws_s3_object" "temporary" {
     Name = "monmetrecarre"
   }
 }
+
+resource "aws_s3_bucket_lifecycle_configuration" "temporary_lifecycle" {
+  bucket = aws_s3_bucket.monmetrecarre_bucket.id
+
+  rule {
+    id     = "temporary-delete"
+    status = "Enabled"
+
+    filter {
+      prefix = "temporary/"
+    }
+
+    expiration {
+      days = 1
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 1
+    }
+  }
+}

@@ -46,35 +46,35 @@ df = dynamic_frame.toDF()
 
 # --- Transformations ---
 df = df.withColumn("year", col("year").cast("integer"))
-
+df = df.withColumn("month", col("month").cast("integer"))
 df = df.withColumn(
-    "Valeur fonciere",
-    regexp_replace(col("Valeur fonciere"), ",", ".").cast("decimal(18,2)"),
+    "valeur_fonciere",
+    regexp_replace(col("valeur_fonciere"), ",", ".").cast("decimal(18,2)"),
 )
 df = df.withColumn(
-    "Surface reelle bati", col("Surface reelle bati").cast("decimal(18,2)")
+    "surface_reelle_bati", col("surface_reelle_bati").cast("decimal(18,2)")
 )
 
-filtered_df = df.filter(col("Type local").isin(["Appartement", "Maison"]))
+filtered_df = df.filter(col("type_local").isin(["Appartement", "Maison"]))
 
 df_with_individual_price = filtered_df.filter(
-    col("Surface reelle bati").isNotNull() & (col("Surface reelle bati") > 0)
-).withColumn("individual_prix_m2", col("Valeur fonciere") / col("Surface reelle bati"))
+    col("surface_reelle_bati").isNotNull() & (col("surface_reelle_bati") > 0)
+).withColumn("individual_prix_m2", col("valeur_fonciere") / col("surface_reelle_bati"))
 
 # Aggregations
 grouped = (
-    df_with_individual_price.groupBy("year", "Commune", "Type local")
+    df_with_individual_price.groupBy("year", "month", "code_insee", "type_local")
     .agg(
-        F.avg("Valeur fonciere").alias("avg_valeur_fonciere"),
-        F.avg("Surface reelle bati").alias("avg_surface_bati"),
-        F.avg("Surface terrain").alias("avg_surface_terrain"),
+        F.avg("valeur_fonciere").alias("avg_valeur_fonciere"),
+        F.avg("surface_reelle_bati").alias("avg_surface_bati"),
+        F.avg("surface_terrain").alias("avg_surface_terrain"),
         F.count("*").alias("count"),
         F.percentile_approx("individual_prix_m2", 0.95).alias("prix_metre_carre_95p"),
         F.percentile_approx("individual_prix_m2", 0.05).alias("prix_metre_carre_05p"),
         F.percentile_approx("individual_prix_m2", 0.75).alias("prix_metre_carre_75p"),
         F.percentile_approx("individual_prix_m2", 0.25).alias("prix_metre_carre_25p"),
     )
-    .filter(10 < col("count"))
+    .filter(5 < col("count"))
 )
 
 grouped = (
@@ -89,8 +89,8 @@ grouped = (
 # --- Flatten for DynamoDB ---
 # PK = Commune, SK = Type#Year
 flattened_df = grouped.withColumn(
-    "Type#Year", F.concat_ws("#", col("Type local"), col("year"))
-).drop("Type local", "year")
+    "type_year", F.concat_ws("_", col("type_local"), col("year"), col("month"))
+).drop("type_local", "year")
 
 # Convert to JSON strings for DynamoDB
 items = (

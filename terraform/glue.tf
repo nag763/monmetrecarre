@@ -13,21 +13,21 @@ resource "aws_glue_job" "glue_job_api_to_raw" {
   role_arn = aws_iam_role.glue_job_role.arn
 
   command {
-    name            = "pythonshell"
     script_location = "s3://${aws_s3_bucket.monmetrecarre_bucket.id}/scripts/ingest.py"
-    python_version  = "3.9"
+    python_version  = "3"
   }
 
   default_arguments = {
-    "--TempDir"             = aws_s3_object.temporary.id,
+    "--TempDir"             = "s3://${aws_s3_object.temporary.id}",
+    "--temp_dir_path"       = "temporary",
     "--bucket_name"         = aws_s3_bucket.monmetrecarre_bucket.id
     "--compressed_prefix"   = "raw"
     "--uncompressed_prefix" = "transformed"
   }
 
-  # Use max_capacity to request 1/16 DPU (0.0625) for a Python shell job
-  max_capacity = 1
-  glue_version = "3.0"
+  worker_type       = "G.1X"
+  number_of_workers = 4
+  glue_version      = "3.0"
 
   tags = {
     Name = "monmetrecarre"
@@ -40,7 +40,7 @@ resource "aws_glue_crawler" "monmetrecarre_raw_crawler" {
   name          = "monmetrecarre-raw-crawler"
   role          = aws_iam_role.glue_crawler_role.arn
   s3_target {
-    path = "s3://${aws_s3_bucket.monmetrecarre_bucket.id}/transformed/"
+    path = "s3://${aws_s3_bucket.monmetrecarre_bucket.id}/transformed/vf/"
   }
 
   tags = {
@@ -60,10 +60,10 @@ resource "aws_glue_job" "glue_job_raw_to_dynamodb" {
     "--TempDir"             = "s3://${aws_s3_bucket.monmetrecarre_bucket.id}/temporary/",
     "--dynamodb_table_name" = aws_dynamodb_table.monmetrecarre_dynamodb_table.name,
     "--glue_database"       = aws_glue_catalog_database.monmetrecarre_glue_database.name,
-    "--glue_table"          = "transformed",
+    "--glue_table"          = "vf",
   }
   worker_type       = "G.1X"
-  number_of_workers = 2
+  number_of_workers = 4
   glue_version      = "5.0"
 
   tags = {
