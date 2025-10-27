@@ -164,3 +164,53 @@ resource "aws_iam_role_policy" "glue_crawler_policy" {
     ]
   })
 }
+
+resource "aws_iam_role" "lambda_vf_stats_role" {
+  name = "monmetrecarre-lambda-vf-stats-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      },
+    ]
+  })
+
+  tags = {
+    Name = "monmetrecarre"
+  }
+}
+
+resource "aws_iam_role_policy" "lambda_vf_stats_policy" {
+  name = "monmetrecarre-lambda-vf-stats-policy"
+  role = aws_iam_role.lambda_vf_stats_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Effect   = "Allow"
+        Resource = "arn:aws:logs:*:*:*"
+      },
+      {
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:Query",
+          "dynamodb:Scan"
+        ]
+        Effect   = "Allow"
+        Resource = aws_dynamodb_table.monmetrecarre_dynamodb_table.arn
+      }
+    ]
+  })
+}
