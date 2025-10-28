@@ -33,7 +33,7 @@ resource "aws_cloudfront_origin_request_policy" "api_gateway_origin_request_poli
   }
 
   headers_config {
-    header_behavior = "allViewer"
+    header_behavior = "none"
   }
 
   query_strings_config {
