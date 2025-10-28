@@ -32,15 +32,27 @@ resource "aws_lambda_permission" "allow_api_gateway_to_invoke_lambda" {
   source_arn = "${aws_apigatewayv2_api.monmetrecarre_api.execution_arn}/*/*"
 }
 
+data "archive_file" "lambda_zip" {
+  type        = "zip"
+  source_file = "../lambda/auth/handler.py"
+  output_path = "/tmp/lambda_function.zip"
+}
+
 resource "aws_lambda_function" "lambda_authorizer" {
   function_name    = "monmetrecarre-authorizer"
-  handler          = "index.handler"
-  runtime          = "nodejs22.x"
+  handler          = "handler.lambda_handler"
+  runtime          = "python3.12"
   role             = aws_iam_role.lambda_authorizer_role.arn
-  filename         = "../lambda/auth/function.zip"
-  source_code_hash = filebase64sha256("../lambda/auth/function.zip")
+  filename         = data.archive_file.lambda_zip.output_path
+  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
   timeout          = 5
+  architectures    = ["x86_64"]
+  publish          = true
 
+
+  snap_start {
+    apply_on = "PublishedVersions" # Required setting to enable SnapStart
+  }
   environment {
     variables = {
       SECRET_HEADER_VALUE = random_string.random.result
