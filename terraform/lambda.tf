@@ -1,6 +1,6 @@
 resource "random_string" "random" {
-  length           = 128
-  special          = true
+  length  = 256
+  special = false
 }
 
 resource "aws_lambda_function" "vf_stats_lambda" {
@@ -40,7 +40,7 @@ resource "aws_lambda_function" "lambda_authorizer" {
   filename         = "../lambda/auth/function.zip"
   source_code_hash = filebase64sha256("../lambda/auth/function.zip")
   timeout          = 5
-  
+
   environment {
     variables = {
       SECRET_HEADER_VALUE = random_string.random.result
@@ -58,5 +58,5 @@ resource "aws_lambda_permission" "allow_api_gateway_to_invoke_authorizer" {
   function_name = aws_lambda_function.lambda_authorizer.function_name
   principal     = "apigateway.amazonaws.com"
 
-  source_arn = "${aws_apigatewayv2_api.monmetrecarre_api.execution_arn}/*/*"
+  source_arn = "${aws_apigatewayv2_api.monmetrecarre_api.execution_arn}/authorizers/*"
 }
