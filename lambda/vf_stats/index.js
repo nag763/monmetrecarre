@@ -4,15 +4,23 @@ const { z } = require("zod");
 
 const codeInseeSchema = z.string().length(5);
 
+const headers = { 'Content-Type': 'application/json' };
+
+const produceMessage = ({message, statusCode=400}) => {
+  console.warn(message);
+  return { statusCode: statusCode, body: JSON.stringify({message}), isBase64Encoded: false, headers};
+}
+
 exports.handler = async function (event) {
 
   const { codeInsee } = event.pathParameters;
   if(!codeInsee) {
-    return { statusCode: 400, body: {message: "Bad Request: Missing code_insee in path parameter"}, isBase64Encoded: false };
+    return produceMessage({message: "Bad Request: Missing codeInsee in path parameter"});
   }
   const codeInseeValidation = codeInseeSchema.safeParse(codeInsee);
   if (!codeInseeValidation.success) {
-    return { statusCode: 400, body: "Bad Request: Invalid codeInsee in path parameter" };
+
+    return produceMessage({message: "Bad Request: Invalid codeInsee in path parameter"});
   }
 
   const ddbClient = new DynamoDBClient({ region: process.env.AWS_REGION || "eu-central-1" });
@@ -28,11 +36,12 @@ exports.handler = async function (event) {
   const response = await ddbDocClient.send(command);
 
   if (!response.Items || response.Items.length === 0) {
-    return { statusCode: 204, body: "Not Found: No data for the given code_insee" };
+    return produceMessage({statusCode: 204, message: "Bad Request: Invalid codeInsee in path parameter"});
   }
   return {
     statusCode: 200,
     body: JSON.stringify(response.Items),
-    isBase64Encoded: false
+    isBase64Encoded: false,
+    headers
   };
 };
