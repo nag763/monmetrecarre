@@ -2,39 +2,24 @@ const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, QueryCommand } = require("@aws-sdk/lib-dynamodb");
 const { z } = require("zod");
 
-bodySchema = z.object({
-  codeInsee: z.string().length(5)
-})
+const codeInseeSchema = z.string().length(5);
 
 exports.handler = async function (event) {
 
-  let requestBody;
-
-  if (!event.body) {
-    return { statusCode: 400, body: "Bad Request: Missing body" };
+  const { codeInsee } = event.pathParameters;
+  if(!codeInsee) {
+    return { statusCode: 400, body: {message: "Bad Request: Missing code_insee in path parameter"}, isBase64Encoded: false };
   }
-
-  try {
-    if (event.isBase64Encoded) {
-      const decodedBody = Buffer.from(event.body, 'base64').toString('utf-8');
-      requestBody = JSON.parse(decodedBody);
-    } else {
-      requestBody = JSON.parse(event.body);
-    }
-  } catch (error) {
-    return { statusCode: 400, body: error.message };
-  }
-
-  const bodyParsed = bodySchema.safeParse(requestBody);
-  if (!bodyParsed.success) {
-    return { statusCode: 400, body: "Bad Request: Invalid codeInsee format" };
+  const codeInseeValidation = codeInseeSchema.safeParse(codeInsee);
+  if (!codeInseeValidation.success) {
+    return { statusCode: 400, body: "Bad Request: Invalid codeInsee in path parameter" };
   }
 
   const ddbClient = new DynamoDBClient({ region: process.env.AWS_REGION || "eu-central-1" });
   const ddbDocClient = DynamoDBDocumentClient.from(ddbClient);
   const input = {
     ExpressionAttributeValues: {
-      ":code_insee": bodyParsed.data.codeInsee,
+      ":code_insee": codeInsee,
     },
     KeyConditionExpression: "code_insee = :code_insee",
     TableName: process.env.DYNAMODB_TABLE_NAME,
@@ -47,6 +32,7 @@ exports.handler = async function (event) {
   }
   return {
     statusCode: 200,
-    body: response.Items,
+    body: JSON.stringify(response.Items),
+    isBase64Encoded: false
   };
 };

@@ -92,9 +92,13 @@ flattened_df = grouped.withColumn(
     "type_year", F.concat_ws("_", col("type_local"), col("year"), col("month"))
 )
 
+reformatted_month_df = flattened_df.withColumn(
+    "month", F.lpad(col("month").cast("string"), 2, "0")
+)
+
 # Convert to JSON strings for DynamoDB
 items = (
-    flattened_df.toJSON().collect()
+    reformatted_month_df.toJSON().collect()
 )  # Caution: collect() can be large for big datasets
 
 # --- Write to DynamoDB ---
