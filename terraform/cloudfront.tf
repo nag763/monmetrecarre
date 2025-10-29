@@ -44,7 +44,7 @@ resource "aws_cloudfront_origin_request_policy" "api_gateway_origin_request_poli
 resource "aws_cloudfront_distribution" "monmetrecarre_cloudfront" {
   price_class = "PriceClass_100"
   origin {
-    domain_name = replace(aws_apigatewayv2_api.monmetrecarre_api.api_endpoint, "https://", "")
+    domain_name = replace(replace(aws_lambda_function_url.vf_stats_lambda_url.function_url, "https://", ""),"/", "")
     origin_id   = "monmetrecarre-api-gateway"
 
     custom_origin_config {
@@ -52,10 +52,6 @@ resource "aws_cloudfront_distribution" "monmetrecarre_cloudfront" {
       https_port             = 443
       origin_protocol_policy = "https-only"
       origin_ssl_protocols   = ["TLSv1.2"]
-    }
-    custom_header {
-      name  = "x-origin-verify"
-      value = random_string.random.result
     }
   }
 

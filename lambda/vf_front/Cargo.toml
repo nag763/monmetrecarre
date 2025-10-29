@@ -1,0 +1,16 @@
+[package]
+name = "bootstrap"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+askama = "0.14.0"
+aws-config = "1.8.8"
+aws-sdk-dynamodb = "1.96.0"
+lambda_http = "0.13.0"
+
+tokio = { version = "1", features = ["macros"] }
+
+[profile.release]
+strip = true
+lto = true

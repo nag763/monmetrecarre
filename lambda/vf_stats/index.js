@@ -2,7 +2,7 @@ const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, QueryCommand } = require("@aws-sdk/lib-dynamodb");
 const { z } = require("zod");
 
-const codeInseeSchema = z.string().length(5);
+const codeInseeSchema = z().length(5);
 
 const headers = { 'Content-Type': 'application/json' };
 
