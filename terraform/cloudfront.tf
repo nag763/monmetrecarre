@@ -46,6 +46,7 @@ resource "aws_cloudfront_distribution" "monmetrecarre_cloudfront" {
   origin {
     domain_name = replace(replace(aws_lambda_function_url.vf_stats_lambda_url.function_url, "https://", ""),"/", "")
     origin_id   = "monmetrecarre-api-gateway"
+    origin_access_control_id = aws_cloudfront_origin_access_control.oac_lambda.id
 
     custom_origin_config {
       http_port              = 80
@@ -53,6 +54,7 @@ resource "aws_cloudfront_distribution" "monmetrecarre_cloudfront" {
       origin_protocol_policy = "https-only"
       origin_ssl_protocols   = ["TLSv1.2"]
     }
+
   }
 
   enabled             = true
@@ -87,4 +89,12 @@ resource "aws_cloudfront_distribution" "monmetrecarre_cloudfront" {
 
 output "cloudfront_domain_name" {
   value = aws_cloudfront_distribution.monmetrecarre_cloudfront.domain_name
+}
+
+resource "aws_cloudfront_origin_access_control" "oac_lambda" {
+  name                              = "lambda-oac-monmetrecarre"
+  description                       = "OAC for Lambda Function URL"
+  origin_access_control_origin_type = "lambda"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
 }

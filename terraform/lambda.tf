@@ -11,7 +11,7 @@ resource "aws_lambda_function" "vf_stats_lambda" {
   role             = aws_iam_role.lambda_vf_stats_role.arn
   filename         = data.archive_file.lambda_zip.output_path
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
-  memory_size      = 128
+  memory_size      = 256
   timeout          = 3
 
   environment {
@@ -27,5 +27,15 @@ resource "aws_lambda_function" "vf_stats_lambda" {
 
 resource "aws_lambda_function_url" "vf_stats_lambda_url" {
   function_name      = aws_lambda_function.vf_stats_lambda.function_name
-  authorization_type = "NONE"
+  authorization_type = "AWS_IAM"
+}
+
+
+resource "aws_lambda_permission" "oac_lambda_invoke" {
+  statement_id  = "AllowCloudFrontServicePrincipal"
+  action        = "lambda:InvokeFunctionUrl"
+  function_name = aws_lambda_function.vf_stats_lambda.function_name
+  principal     = "cloudfront.amazonaws.com"
+
+  source_arn = aws_cloudfront_distribution.monmetrecarre_cloudfront.arn
 }
