@@ -80,25 +80,27 @@ grouped = (
 grouped = (
     grouped.withColumn(
         "prix_metre_carre_avg",
-        F.round(col("avg_valeur_fonciere") / col("avg_surface_bati"), 2),
+        F.ceil(col("avg_valeur_fonciere") / col("avg_surface_bati")),
     )
-    .withColumn("avg_valeur_fonciere", F.round(col("avg_valeur_fonciere"), 2))
-    .withColumn("avg_surface_bati", F.round(col("avg_surface_bati"), 2))
+    .withColumn("avg_valeur_fonciere", F.ceil(col("avg_valeur_fonciere")))
+    .withColumn("avg_surface_bati", F.ceil(col("avg_surface_bati")))
+)
+
+reformatted_month_df = grouped.withColumn(
+    "month", F.lpad(col("month").cast("string"), 2, "0")
 )
 
 # --- Flatten for DynamoDB ---
 # PK = Commune, SK = Type#Year
-flattened_df = grouped.withColumn(
+flattened_df = reformatted_month_df.withColumn(
     "type_year", F.concat_ws("_", col("type_local"), col("year"), col("month"))
 )
 
-reformatted_month_df = flattened_df.withColumn(
-    "month", F.lpad(col("month").cast("string"), 2, "0")
-)
+
 
 # Convert to JSON strings for DynamoDB
 items = (
-    reformatted_month_df.toJSON().collect()
+    flattened_df.toJSON().collect()
 )  # Caution: collect() can be large for big datasets
 
 # --- Write to DynamoDB ---
