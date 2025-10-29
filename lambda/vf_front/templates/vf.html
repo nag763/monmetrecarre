@@ -83,7 +83,7 @@
                 <div class="mb-8 text-center md:mb-12">
                     <h1
                         class="text-4xl font-black leading-tight tracking-[-0.033em] text-primary dark:text-secondary md:text-5xl">
-                        Prix de l'immobilier à Paris</h1>
+                        Prix de l'immobilier à {{ville}} ({{code_postaux.first().unwrap()}})</h1>
                     <p class="mt-2 text-base font-normal leading-normal text-slate-600 dark:text-slate-400 md:text-lg">
                         Évolution des prix des biens immobiliers</p>
                 </div>
@@ -93,14 +93,15 @@
                         class="flex flex-col gap-2 rounded-xl p-6 bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark shadow-sm">
                         <p class="text-base font-medium leading-normal">Appartements</p>
                         <p class="tracking-light text-4xl font-bold leading-tight text-primary dark:text-secondary">
-                        {{latest_appartement.get("prix_metre_carre_avg").unwrap().as_n().unwrap()}} €/m²</p>
+                            {{latest_appartement.get("prix_metre_carre_avg").unwrap().as_n().unwrap()}} €/m²</p>
                         <p class="text-sm font-medium leading-normal text-slate-500 dark:text-slate-400">Surface moyenne
                             : {{latest_appartement.get("avg_surface_terrain").unwrap().as_n().unwrap()}}m²</p>
                     </div>
                     <div
                         class="flex flex-col gap-2 rounded-xl p-6 bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark shadow-sm">
                         <p class="text-base font-medium leading-normal">Maisons</p>
-                        <p class="tracking-light text-4xl font-bold leading-tight text-primary dark:text-secondary">{{latest_maison.get("prix_metre_carre_avg").unwrap().as_n().unwrap()}} €/m²</p>
+                        <p class="tracking-light text-4xl font-bold leading-tight text-primary dark:text-secondary">
+                            {{latest_maison.get("prix_metre_carre_avg").unwrap().as_n().unwrap()}} €/m²</p>
                         <p class="text-sm font-medium leading-normal text-slate-500 dark:text-slate-400">Surface moyenne
                             : {{latest_maison.get("avg_surface_terrain").unwrap().as_n().unwrap()}}m²</p>
                     </div>
@@ -118,7 +119,7 @@
                             <p class="text-base font-medium leading-normal">Prix par m² (Appartements vs. Maisons)</p>
                             <p
                                 class="tracking-light text-[32px] font-bold leading-tight text-primary dark:text-secondary">
-                                 €/m²</p>
+                                €/m²</p>
                             <div class="flex gap-1">
                                 <p class="text-sm font-normal leading-normal text-slate-600 dark:text-slate-400">Moyenne
                                     depuis 2022</p>
