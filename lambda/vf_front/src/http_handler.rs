@@ -10,8 +10,33 @@ type DynamoDbItem = HashMap<String, aws_sdk_dynamodb::types::AttributeValue>;
 
 const GEO_GOUV_API_URL: &str = "https://geo.api.gouv.fr/communes/";
 
-fn filter_values(e: &&DynamoDbItem) -> bool {
-    e.get("prix_metre_carre_avg").is_some() && e.get("surface_reelle_bati").is_some()
+enum DynamoQuery<'a> {
+    ByCodeInsee(&'a str),
+    ByCodePostal(&'a str),
+    ByVille(&'a str),
+}
+
+impl DynamoQuery<'_> {
+
+    fn attribute_name(&self) -> &str {
+        match self {
+            DynamoQuery::ByCodeInsee(_) => "code_insee",
+            DynamoQuery::ByCodePostal(_) => "code_postal",
+            DynamoQuery::ByVille(_) => "ville",
+        }
+    }
+
+    fn value(&self) -> &str {
+        match self {
+            DynamoQuery::ByCodeInsee(v) => v,
+            DynamoQuery::ByCodePostal(v) => v,
+            DynamoQuery::ByVille(v) => v,
+        }
+    }
+
+    fn dynamo_value(&self) -> dynamodb::types::AttributeValue {
+        dynamodb::types::AttributeValue::S(self.value().to_string())
+    }
 }
 
 #[derive(Template)]
@@ -39,51 +64,51 @@ struct ApiGeoGouvResponse {
 
 pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     // Extract some useful information from the request
-    let path = event.uri().path();
-    if path.is_empty() || path == "/" {
-        return Err("code_insee is required in the path".into());
-    }
-    let code_insee = &path[1..];
-
-    if code_insee.len() != 5 {
-        println!("Provided code_insee: {}", code_insee);
-        return Err("code_insee must be 5 characters long".into());
-    } else if !code_insee.chars().all(|c| c.is_ascii_digit()) {
-        return Err("code_insee must be numeric".into());
-    }
+    let path_params = event.path_parameters();
+    let query = match (
+        path_params.first("codeInsee"),
+        path_params.first("codePostal"),
+        path_params.first("ville"),
+    ) {
+        (Some(code_insee), _, _) => DynamoQuery::ByCodeInsee(code_insee),
+        (_, Some(code_postal), _) => DynamoQuery::ByCodePostal(code_postal),
+        (_, _, Some(ville)) => DynamoQuery::ByVille(ville),
+        _ => return Err("code_insee, code_postal or ville is required in the path".into()),
+    };
 
     let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
     let dynamo_table: &str =
         &std::env::var("DYNAMODB_TABLE_NAME").unwrap_or("monmetrecarre".to_string());
 
-    let reqwest_client =reqwest::Client::new();
-    let geo_gouv_response =reqwest_client
-            .get(format!("{GEO_GOUV_API_URL}{code_insee}"))
-            .send()
-            .await?
-            .json::<ApiGeoGouvResponse>().await?;
-        
+    let reqwest_client = reqwest::Client::new();
+    let geo_gouv_response = reqwest_client
+        .get(format!("{GEO_GOUV_API_URL}{}", query.value()))
+        .send()
+        .await?
+        .json::<ApiGeoGouvResponse>()
+        .await?;
+
     let dynamo_client = dynamodb::Client::new(&config);
-        
+
     let dynamo_results = dynamo_client
-            .query()
-            .table_name(dynamo_table)
-            .key_condition_expression("#code_insee = :code_insee")
-            .expression_attribute_names("#code_insee", "code_insee")
-            .expression_attribute_values(
-                ":code_insee",
-                dynamodb::types::AttributeValue::S(code_insee.to_string()),
-            )
-            .send().await?;
+        .query()
+        .table_name(dynamo_table)
+        .key_condition_expression("#attr = :v1")
+        .expression_attribute_names("#attr", query.attribute_name())
+        .expression_attribute_values(
+            ":v1",
+            query.dynamo_value(),
+        )
+        .send()
+        .await?;
 
     let items_as_vec: Vec<DynamoDbItem> =
         dynamo_results.items.expect("No value for input").to_vec();
     if items_as_vec.is_empty() {
-        panic!("No items found for code_insee {code_insee}");
+        panic!("No items found for code_insee");
     }
-    let (appartements, maisons) : (Vec<&DynamoDbItem>, Vec<&DynamoDbItem>) = items_as_vec
-        .iter()
-        .partition(|e| {
+    let (appartements, maisons): (Vec<&DynamoDbItem>, Vec<&DynamoDbItem>) =
+        items_as_vec.iter().partition(|e| {
             e.get("type_local")
                 == Some(&dynamodb::types::AttributeValue::S(
                     "Appartement".to_string(),

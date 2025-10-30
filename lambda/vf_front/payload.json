@@ -17,7 +17,9 @@
   "queryStringParameters": {
     "QueryString1": "queryValue1"
   },
-  "pathParameters": {},
+  "pathParameters": {
+    "codeInsee": "76057"
+  },
   "stageVariables": {
     "StageVar1": "stageValue1"
   },
