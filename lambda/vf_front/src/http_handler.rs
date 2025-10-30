@@ -1,37 +1,33 @@
 use askama::Template;
 use aws_config::BehaviorVersion;
 use aws_sdk_dynamodb::{self as dynamodb, types::AttributeValue};
-use lambda_http::{Body, Error, Request, Response};
-use minify_html::{minify, Cfg};
+use lambda_http::{aws_lambda_events::query_map::serde, Body, Error, Request, Response};
 use std::collections::HashMap;
 
 type DynamoDbItem = HashMap<String, aws_sdk_dynamodb::types::AttributeValue>;
+type PlotData = (Vec<String>, Vec<String>);
 
-enum DynamoQuery<'a> {
-    ByCodeInsee(&'a str),
-    ByCodePostal(&'a str),
-    ByVille(&'a str),
+// This function contains your duplicated logic
+fn extract_plot_data(items: &[&DynamoDbItem]) -> PlotData {
+    items
+        .iter()
+        .map(|e| {
+            (
+                unmarshall_dynamo::<String>(e.get("month")).unwrap(),
+                unmarshall_dynamo::<f32>(e.get("prix_metre_carre_avg"))
+                    .unwrap()
+                    .to_string(),
+            )
+        })
+        .unzip()
 }
 
-impl DynamoQuery<'_> {
-    fn attribute_name(&self) -> &str {
-        match self {
-            DynamoQuery::ByCodeInsee(_) => "code_insee",
-            DynamoQuery::ByCodePostal(_) => "code_postal",
-            DynamoQuery::ByVille(_) => "ville",
-        }
-    }
-
-    fn value(&self) -> &str {
-        match self {
-            DynamoQuery::ByCodeInsee(v) => v,
-            DynamoQuery::ByCodePostal(v) => v,
-            DynamoQuery::ByVille(v) => v,
-        }
-    }
-
-    fn dynamo_value(&self) -> dynamodb::types::AttributeValue {
-        dynamodb::types::AttributeValue::S(self.value().to_string())
+fn unmarshall_dynamo<T: std::str::FromStr>(av: Option<&AttributeValue>) -> Option<T> {
+    let val = av?;
+    match val {
+        AttributeValue::S(s) => s.parse::<T>().ok(),
+        AttributeValue::N(n) => n.parse::<T>().ok(),
+        _ => None,
     }
 }
 
@@ -43,6 +39,8 @@ struct VfTemplate<'a> {
     latest_appartement: Option<&'a DynamoDbItem>,
     latest_maison: Option<&'a DynamoDbItem>,
     code_postaux: Vec<String>,
+    appartements_plot_data: (Vec<String>, Vec<String>),
+    maisons_plot_data: (Vec<String>, Vec<String>),
     ville: String,
 }
 
@@ -56,13 +54,6 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
     let real_path = &path[1..];
     let Some((param, value)) = real_path.split_once('/') else {
         return Err("invalid path param format".into());
-    };
-
-    let query = match param {
-        "codeInsee" => DynamoQuery::ByCodeInsee(value),
-        "codePostal" => DynamoQuery::ByCodePostal(value),
-        "ville" => DynamoQuery::ByVille(value),
-        _ => return Err("invalid path param".into()),
     };
 
     let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
@@ -97,11 +88,7 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
         .send()
         .await?;
 
-    let ville = geo_gouv_item
-        .get("nom")
-        .and_then(|v| v.as_s().ok())
-        .ok_or("Unknown City".to_string())?
-        .to_string();
+    let ville: String = unmarshall_dynamo(geo_gouv_item.get("nom")).unwrap();
     let code_postaux = geo_gouv_item
         .get("codesPostaux")
         .and_then(|v| v.as_l().ok())
@@ -122,30 +109,30 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
                     "Appartement".to_string(),
                 ))
         });
+
     let latest_appartement = appartements.last().cloned();
     let latest_maison = maisons.last().cloned();
+    
+    let appartements_plot_data = extract_plot_data(&appartements);
+    let maisons_plot_data = extract_plot_data(&maisons);
 
     let response = VfTemplate {
         ville,
         appartements: appartements.clone(),
         maisons: maisons.clone(),
-        latest_appartement: latest_appartement,
+        latest_appartement,
         code_postaux,
-        latest_maison: latest_maison,
+        latest_maison,
+        appartements_plot_data,
+        maisons_plot_data,
     };
 
     let rendered = response.render()?;
-    let cfg = Cfg {
-        minify_js: true,
-        minify_css: true,
-        ..Cfg::default()
-    };
-    let minified_bytes = minify(rendered.as_bytes(), &cfg);
 
     let resp = Response::builder()
         .status(200)
         .header("content-type", "text/html")
-        .body(minified_bytes.into())
+        .body(rendered.into())
         .map_err(Box::new)?;
     Ok(resp)
 }

@@ -12,6 +12,7 @@
         rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         tailwind.config = {
             darkMode: "class",
@@ -41,6 +42,67 @@
                 },
             },
         }
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            let ctx = document.getElementById('appartementsPlotChart').getContext('2d');
+
+            let appartementsPlotChart = new Chart(ctx, {
+                type: 'line', // Specify the chart type
+                data: {
+                    labels: [{{ appartements_plot_data.0.join(",") }}],
+                datasets: [{
+                    label: 'Appartements',
+                    data: [{{ appartements_plot_data.1.join(",") }}],
+                fill: false,
+                borderColor: 'rgb(75, 0, 192)',
+                tension: 0.1 // Makes the line slightly curved
+            }]
+                },
+            options: {
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true // Start the Y-axis at 0
+                }
+            }
+        }
+            });
+
+        let maisonsCtx = document.getElementById('maisonsPlotChart').getContext('2d');
+
+        let maisonsPlotChart = new Chart(maisonsCtx, {
+            type: 'line', // Specify the chart type
+            data: {
+                labels: [{{ maisons_plot_data.0.join(",") }}],
+            datasets: [{
+                label: 'Maisons',
+                data: [{{ maisons_plot_data.1.join(",") }}],
+            fill: false,
+            borderColor: 'rgb(75, 192, 192)',
+            tension: 0.1 // Makes the line slightly curved
+        }]
+                },
+        options: {
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            responsive: true,
+                scales: {
+                y: {
+                    beginAtZero: true // Start the Y-axis at 0
+                }
+            }
+        }
+            });
+        });
     </script>
     <style>
         .material-symbols-outlined {
@@ -146,71 +208,22 @@ late-400">Surface moyenne
                     class="mt-6 rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark p-4 shadow-sm sm:p-6">
                     <div class="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <p class="text-base font-medium leading-normal">Prix par m² (Appartements vs. Maisons)</p>
-                            <p
-                                class="tracking-light text-[32px] font-bold leading-tight text-primary dark:text-secondary">
-                                €/m²</p>
-                            <div class="flex gap-1">
-                                <p class="text-sm font-normal leading-normal text-slate-600 dark:text-slate-400">Moyenne
-                                    depuis 2022</p>
-                                <p class="text-sm font-medium leading-normal text-[#078838]">+3.1%</p>
-                            </div>
+                            <p class="text-base font-medium leading-normal">Prix par m²</p>
                         </div>
                         <div class="flex items-center gap-4">
                             <div class="flex items-center gap-2">
-                                <div class="h-2 w-4 rounded-full bg-primary dark:bg-secondary"></div>
                                 <span class="text-xs font-medium">Appartements</span>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <div class="h-2 w-4 rounded-full bg-secondary dark:bg-primary"></div>
-                                <span class="text-xs font-medium">Maisons</span>
-                            </div>
                         </div>
                     </div>
-                    <div class="flex min-h-[220px] w-full flex-col gap-8 py-4">
-                        <div class="relative h-56 w-full">
-                            <svg class="absolute inset-0" fill="none" height="100%" preserveaspectratio="none"
-                                viewbox="0 0 500 150" width="100%" xmlns="http://www.w3.org/2000/svg">
-                                <!-- Grid Lines -->
-                                <line class="text-border-light dark:text-border-dark" stroke="currentColor"
-                                    stroke-width="0.5" x1="0" x2="500" y1="0" y2="0"></line>
-                                <line class="text-border-light dark:text-border-dark" stroke="currentColor"
-                                    stroke-width="0.5" x1="0" x2="500" y1="50" y2="50"></line>
-                                <line class="text-border-light dark:text-border-dark" stroke="currentColor"
-                                    stroke-width="0.5" x1="0" x2="500" y1="100" y2="100"></line>
-                                <line class="text-border-light dark:text-border-dark" stroke="currentColor"
-                                    stroke-width="0.5" x1="0" x2="500" y1="150" y2="150"></line>
-                                <!-- Houses data line (Secondary) -->
-                                <path class="stroke-secondary dark:stroke-primary"
-                                    d="M0 80 C 41.6 80, 41.6 40, 83.3 40 C 125 40, 125 70, 166.6 70 C 208.3 70, 208.3 20, 250 20 C 291.6 20, 291.6 90, 333.3 90 C 375 90, 375 130, 416.6 130 C 458.3 130, 458.3 110, 500 110"
-                                    stroke-width="2.5"></path>
-                                <!-- Apartments data line (Primary) -->
-                                <path class="stroke-primary dark:stroke-secondary"
-                                    d="M0 109C41.6 109 41.6 21 83.3 21C125 21 125 41 166.6 41C208.3 41 208.3 93 250 93C291.6 93 291.6 33 333.3 33C375 33 375 101 416.6 101C458.3 101 458.3 129 500 129"
-                                    stroke-width="2.5"></path>
-                            </svg>
-                        </div>
-                        <div class="flex justify-between">
-                            <p
-                                class="text-[13px] font-bold leading-normal tracking-[0.015em] text-slate-500 dark:text-slate-400">
-                                Jan '22</p>
-                            <p
-                                class="text-[13px] font-bold leading-normal tracking-[0.015em] text-slate-500 dark:text-slate-400">
-                                Jul '22</p>
-                            <p
-                                class="text-[13px] font-bold leading-normal tracking-[0.015em] text-slate-500 dark:text-slate-400">
-                                Jan '23</p>
-                            <p
-                                class="text-[13px] font-bold leading-normal tracking-[0.015em] text-slate-500 dark:text-slate-400">
-                                Jul '23</p>
-                            <p
-                                class="text-[13px] font-bold leading-normal tracking-[0.015em] text-slate-500 dark:text-slate-400">
-                                Jan '24</p>
-                            <p
-                                class="text-[13px] font-bold leading-normal tracking-[0.015em] text-slate-500 dark:text-slate-400">
-                                Maintenant</p>
+                    <canvas id="appartementsPlotChart" class="flex min-h-[220px] w-full flex-col gap-8 py-4"></canvas>
+
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-medium">Maisons</span>
                         </div>
                     </div>
+                    <canvas id="maisonsPlotChart" class="flex min-h-[220px] w-full flex-col gap-8 py-4"></canvas>
                 </div>
             </div>
         </main>

@@ -1,8 +1,8 @@
 {
   "type": "REQUEST",
   "methodArn": "arn:aws:execute-api:us-east-1:123456789012:abcdef123/test/GET/request",
-  "resource": "codeInsee/76057",
-  "path": "codeInsee/76057",
+  "resource": "codeInsee/92062",
+  "path": "codeInsee/92062",
   "httpMethod": "GET",
   "headers": {
     "X-AMZ-Date": "20170718T062915Z",
@@ -22,7 +22,7 @@
     "StageVar1": "stageValue1"
   },
   "requestContext": {
-    "path": "codeInsee/76057",
+    "path": "codeInsee/92062",
     "accountId": "123456789012",
     "resourceId": "05c7jb",
     "stage": "",
@@ -41,7 +41,7 @@
         }
       }
     },
-    "resourcePath": "codeInsee/76057",
+    "resourcePath": "codeInsee/92062",
     "httpMethod": "GET",
     "apiId": "abcdef123"
   }
