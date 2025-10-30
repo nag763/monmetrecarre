@@ -83,7 +83,7 @@ grouped = (
         F.ceil(col("avg_valeur_fonciere") / col("avg_surface_bati")),
     )
     .withColumn("avg_valeur_fonciere", F.ceil(col("avg_valeur_fonciere")))
-    .withColumn("avg_surface_bati", F.ceil(col("avg_surface_bati")))
+    .withColumn("avg_surface_bati", F.ceil(col("avg_surface_bati")))   
 )
 
 reformatted_month_df = grouped.withColumn(
