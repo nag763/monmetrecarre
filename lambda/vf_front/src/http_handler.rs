@@ -1,14 +1,11 @@
 use askama::Template;
 use aws_config::BehaviorVersion;
-use aws_sdk_dynamodb as dynamodb;
-use lambda_http::{Body, Error, Request, RequestExt, Response};
+use aws_sdk_dynamodb::{self as dynamodb, types::AttributeValue};
+use lambda_http::{Body, Error, Request, Response};
 use minify_html::{minify, Cfg};
-use serde::Deserialize;
 use std::collections::HashMap;
 
 type DynamoDbItem = HashMap<String, aws_sdk_dynamodb::types::AttributeValue>;
-
-const GEO_GOUV_API_URL: &str = "https://geo.api.gouv.fr/communes/";
 
 enum DynamoQuery<'a> {
     ByCodeInsee(&'a str),
@@ -17,7 +14,6 @@ enum DynamoQuery<'a> {
 }
 
 impl DynamoQuery<'_> {
-
     fn attribute_name(&self) -> &str {
         match self {
             DynamoQuery::ByCodeInsee(_) => "code_insee",
@@ -50,60 +46,72 @@ struct VfTemplate<'a> {
     ville: String,
 }
 
-#[derive(Deserialize)]
-struct ApiGeoGouvResponse {
-    nom: String,
-    #[serde(rename(deserialize = "codesPostaux"))]
-    code_postaux: Vec<String>,
-    #[serde(rename(deserialize = "population"))]
-    _population: u32,
-
-    #[serde(flatten)]
-    _extra: HashMap<String, serde_json::Value>,
-}
-
 pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     // Extract some useful information from the request
-    let path_params = event.path_parameters();
-    let query = match (
-        path_params.first("codeInsee"),
-        path_params.first("codePostal"),
-        path_params.first("ville"),
-    ) {
-        (Some(code_insee), _, _) => DynamoQuery::ByCodeInsee(code_insee),
-        (_, Some(code_postal), _) => DynamoQuery::ByCodePostal(code_postal),
-        (_, _, Some(ville)) => DynamoQuery::ByVille(ville),
-        _ => return Err("code_insee, code_postal or ville is required in the path".into()),
+    let path = event.uri().path();
+    if path.is_empty() || path == "/" {
+        return Err("no path param found".into());
+    }
+
+    let real_path = &path[1..];
+    let Some((param, value)) = real_path.split_once('/') else {
+        return Err("invalid path param format".into());
+    };
+
+    let query = match param {
+        "codeInsee" => DynamoQuery::ByCodeInsee(value),
+        "codePostal" => DynamoQuery::ByCodePostal(value),
+        "ville" => DynamoQuery::ByVille(value),
+        _ => return Err("invalid path param".into()),
     };
 
     let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
-    let dynamo_table: &str =
-        &std::env::var("DYNAMODB_TABLE_NAME").unwrap_or("monmetrecarre".to_string());
 
-    let reqwest_client = reqwest::Client::new();
-    let geo_gouv_response = reqwest_client
-        .get(format!("{GEO_GOUV_API_URL}{}", query.value()))
-        .send()
-        .await?
-        .json::<ApiGeoGouvResponse>()
-        .await?;
-
+    let cities_table: &str =
+        &std::env::var("CITIES_DYNAMODB_TABLE_NAME").unwrap_or("cities".to_string());
+    let dynamo_vf_table: &str =
+        &std::env::var("VF_DYNAMODB_TABLE_NAME").unwrap_or("monmetrecarre".to_string());
     let dynamo_client = dynamodb::Client::new(&config);
 
-    let dynamo_results = dynamo_client
-        .query()
-        .table_name(dynamo_table)
-        .key_condition_expression("#attr = :v1")
-        .expression_attribute_names("#attr", query.attribute_name())
-        .expression_attribute_values(
-            ":v1",
-            query.dynamo_value(),
-        )
+    let geo_gouv_result = dynamo_client
+        .get_item()
+        .table_name(cities_table)
+        .key("code", AttributeValue::S(value.to_string()))
         .send()
         .await?;
 
-    let items_as_vec: Vec<DynamoDbItem> =
-        dynamo_results.items.expect("No value for input").to_vec();
+    let Some(geo_gouv_item) = geo_gouv_result.item else {
+        return Err("No item found for input".into());
+    };
+
+    let Some(code_insee) = geo_gouv_item.get("code") else {
+        return Err("No code_insee found in item".into());
+    };
+
+    let vf_results = dynamo_client
+        .query()
+        .table_name(dynamo_vf_table)
+        .key_condition_expression("#code_insee = :v1")
+        .expression_attribute_names("#code_insee", "code_insee")
+        .expression_attribute_values(":v1", code_insee.clone())
+        .send()
+        .await?;
+
+    let ville = geo_gouv_item
+        .get("nom")
+        .and_then(|v| v.as_s().ok())
+        .ok_or("Unknown City".to_string())?
+        .to_string();
+    let code_postaux = geo_gouv_item
+        .get("codesPostaux")
+        .and_then(|v| v.as_l().ok())
+        .ok_or("No code_postaux found".to_string())?
+        .iter()
+        .filter_map(|av| av.as_s().ok())
+        .cloned()
+        .collect::<Vec<String>>();
+
+    let items_as_vec: Vec<DynamoDbItem> = vf_results.items.expect("No value for input").to_vec();
     if items_as_vec.is_empty() {
         panic!("No items found for code_insee");
     }
@@ -118,11 +126,11 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
     let latest_maison = maisons.last().cloned();
 
     let response = VfTemplate {
-        ville: geo_gouv_response.nom,
+        ville,
         appartements: appartements.clone(),
         maisons: maisons.clone(),
         latest_appartement: latest_appartement,
-        code_postaux: geo_gouv_response.code_postaux,
+        code_postaux,
         latest_maison: latest_maison,
     };
 

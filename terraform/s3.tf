@@ -26,6 +26,15 @@ resource "aws_s3_object" "scripts_ingest" {
 }
 
 
+resource "aws_s3_object" "scripts_cities" {
+  bucket = aws_s3_bucket.monmetrecarre_bucket.id
+  key    = "scripts/cities.py"
+  source = "../etl/cities.py"
+  tags = {
+    Name = "monmetrecarre"
+  }
+}
+
 resource "aws_s3_object" "scripts_transform" {
   bucket = aws_s3_bucket.monmetrecarre_bucket.id
   key    = "scripts/transform.py"

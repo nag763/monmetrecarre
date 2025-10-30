@@ -81,7 +81,7 @@ resource "aws_iam_role_policy" "glue_job_policy" {
           "dynamodb:BatchGetItem"
         ]
         Effect   = "Allow"
-        Resource = aws_dynamodb_table.monmetrecarre_dynamodb_table.arn
+        Resource = [aws_dynamodb_table.monmetrecarre_dynamodb_table.arn, aws_dynamodb_table.cities_dynamodb_table.arn]
       }
     ]
   })
@@ -210,6 +210,15 @@ resource "aws_iam_role_policy" "lambda_vf_stats_policy" {
         ]
         Effect   = "Allow"
         Resource = aws_dynamodb_table.monmetrecarre_dynamodb_table.arn
+      },
+      {
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:Query",
+          "dynamodb:Scan"
+        ]
+        Effect   = "Allow"
+        Resource = aws_dynamodb_table.cities_dynamodb_table.arn
       }
     ]
   })

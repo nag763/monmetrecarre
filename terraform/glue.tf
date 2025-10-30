@@ -70,3 +70,21 @@ resource "aws_glue_job" "glue_job_raw_to_dynamodb" {
     Name = "monmetrecarre"
   }
 }
+
+resource "aws_glue_job" "glue_job_cities_to_dynamodb" {
+  name     = "monmetrecarre-cities-to-dynamodb-job"
+  role_arn = aws_iam_role.glue_job_role.arn
+  max_capacity = "0.0625"
+  command {
+    script_location = "s3://${aws_s3_bucket.monmetrecarre_bucket.id}/scripts/cities.py"
+    python_version  = "3.9"
+    name = "pythonshell"
+  }
+  default_arguments = {
+    "--dynamodb_table_name" = aws_dynamodb_table.cities_dynamodb_table.name,
+  }
+
+  tags = {
+    Name = "monmetrecarre"
+  }
+}

@@ -16,7 +16,8 @@ resource "aws_lambda_function" "vf_stats_lambda" {
 
   environment {
     variables = {
-      DYNAMODB_TABLE_NAME = aws_dynamodb_table.monmetrecarre_dynamodb_table.name
+      VF_DYNAMODB_TABLE_NAME = aws_dynamodb_table.monmetrecarre_dynamodb_table.name,
+      CITIES_DYNAMODB_TABLE_NAME = aws_dynamodb_table.cities_dynamodb_table.name
     }
   }
 

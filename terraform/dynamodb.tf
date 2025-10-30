@@ -18,3 +18,18 @@ resource "aws_dynamodb_table" "monmetrecarre_dynamodb_table" {
     Name = "monmetrecarre"
   }
 }
+
+resource "aws_dynamodb_table" "cities_dynamodb_table" {
+  name         = "cities"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "code"
+
+  attribute {
+    name = "code"
+    type = "S"
+  }
+
+  tags = {
+    Name = "monmetrecarre"
+  }
+}
