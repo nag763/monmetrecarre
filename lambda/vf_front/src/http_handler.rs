@@ -1,4 +1,5 @@
 use askama::Template;
+use aws_config::BehaviorVersion;
 use aws_sdk_dynamodb as dynamodb;
 use lambda_http::{Body, Error, Request, RequestExt, Response};
 use minify_html::{minify, Cfg};
@@ -9,13 +10,17 @@ type DynamoDbItem = HashMap<String, aws_sdk_dynamodb::types::AttributeValue>;
 
 const GEO_GOUV_API_URL: &str = "https://geo.api.gouv.fr/communes/";
 
+fn filter_values(e: &&DynamoDbItem) -> bool {
+    e.get("prix_metre_carre_avg").is_some() && e.get("surface_reelle_bati").is_some()
+}
+
 #[derive(Template)]
 #[template(path = "vf.html")]
 struct VfTemplate<'a> {
     appartements: Vec<&'a DynamoDbItem>,
     maisons: Vec<&'a DynamoDbItem>,
-    latest_appartement: DynamoDbItem,
-    latest_maison: DynamoDbItem,
+    latest_appartement: Option<&'a DynamoDbItem>,
+    latest_maison: Option<&'a DynamoDbItem>,
     code_postaux: Vec<String>,
     ville: String,
 }
@@ -41,12 +46,13 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
     let code_insee = &path[1..];
 
     if code_insee.len() != 5 {
+        println!("Provided code_insee: {}", code_insee);
         return Err("code_insee must be 5 characters long".into());
     } else if !code_insee.chars().all(|c| c.is_ascii_digit()) {
         return Err("code_insee must be numeric".into());
     }
 
-    let config = aws_config::load_from_env().await;
+    let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
     let dynamo_table: &str =
         &std::env::var("DYNAMODB_TABLE_NAME").unwrap_or("monmetrecarre".to_string());
 
@@ -70,36 +76,29 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
             )
             .send().await?;
 
-    let items_as_vec: Vec<HashMap<String, aws_sdk_dynamodb::types::AttributeValue>> =
-        dynamo_results?.items.expect("No value for input").to_vec();
+    let items_as_vec: Vec<DynamoDbItem> =
+        dynamo_results.items.expect("No value for input").to_vec();
     if items_as_vec.is_empty() {
         panic!("No items found for code_insee {code_insee}");
     }
-    let appartements: Vec<&HashMap<String, aws_sdk_dynamodb::types::AttributeValue>> = items_as_vec
+    let (appartements, maisons) : (Vec<&DynamoDbItem>, Vec<&DynamoDbItem>) = items_as_vec
         .iter()
-        .filter(|e| {
+        .partition(|e| {
             e.get("type_local")
                 == Some(&dynamodb::types::AttributeValue::S(
                     "Appartement".to_string(),
                 ))
-        })
-        .collect::<Vec<_>>();
-    let maisons = items_as_vec
-        .iter()
-        .filter(|e| {
-            e.get("type_local") == Some(&dynamodb::types::AttributeValue::S("Maison".to_string()))
-        })
-        .collect::<Vec<_>>();
-    let latest_appartement = appartements.last().unwrap();
-    let latest_maison = maisons.last().unwrap();
+        });
+    let latest_appartement = appartements.last().cloned();
+    let latest_maison = maisons.last().cloned();
 
     let response = VfTemplate {
         ville: geo_gouv_response.nom,
         appartements: appartements.clone(),
         maisons: maisons.clone(),
-        latest_appartement: (*latest_appartement).clone(),
+        latest_appartement: latest_appartement,
         code_postaux: geo_gouv_response.code_postaux,
-        latest_maison: (*latest_maison).clone(),
+        latest_maison: latest_maison,
     };
 
     let rendered = response.render()?;

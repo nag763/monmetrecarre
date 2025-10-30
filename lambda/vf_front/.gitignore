@@ -1,1 +1,22 @@
-target
+# Rust build directory
+/target/
+
+# Rust lock file
+Cargo.lock
+
+# Generated files
+*.rs.bk
+
+# Debug files
+*.pdb
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS specific files
+.DS_Store
+Thumbs.db
+dist
